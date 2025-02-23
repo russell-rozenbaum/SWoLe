@@ -6,7 +6,7 @@ import { Category, MuscleGroup } from './types';
 import { EXERCISE_EQUIPMENT } from './types/exercises';
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
@@ -14,6 +14,15 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Initialize parser
 const parser = new WorkoutParser();
+
+// Serve index.html for all routes (for GitHub Pages SPA support)
+app.get('*', (req, res, next) => {
+  if (req.url.startsWith('/api')) {
+    next();
+    return;
+  }
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // API Routes
 app.post('/api/parse', (req, res) => {

@@ -4,7 +4,8 @@
   "description": "A domain-specific language for tracking and analyzing workout data",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-static",
+    "copy-static": "cp -r public/* dist/",
     "dev": "ts-node src/server.ts",
     "test": "jest",
     "test:parser": "ts-node src/tests/parser.test.ts",
