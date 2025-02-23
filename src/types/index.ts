@@ -32,6 +32,7 @@ export type Category = 'Push' | 'Pull' | 'Legs';
 
 export interface ExerciseReference {
   name: string;
+  variations: string[];
   category: Category;
   muscleGroups: MuscleGroup[];
   equipment: ExerciseType[];
@@ -42,20 +43,20 @@ export interface ExerciseReference {
 
 export interface WeightSpec {
   value: number;
-  modifier?: WeightModifier;
+  modifier?: string;
   isBodyWeight?: boolean;
   bodyWeightModifier?: {
-    operation: '+' | '-';
+    operation: string;
     value: number;
   };
-  reps?: number;
+  isPlaceholder?: boolean;
 }
 
 export interface Set {
   weight: WeightSpec;
-  reps: number;
+  reps: number | '?';
   failureNotes?: string[];
-  dropSet?: WeightSpec;
+  dropSet?: WeightSpec & { reps: number | '?' };
   negatives?: number;
 }
 

@@ -125,6 +125,22 @@ export class WorkoutParser {
     const errors: ParserError[] = [];
     const exerciseName = exercise.name.toLowerCase();
 
+    // Skip validation if any placeholders are present
+    if (exercise.sets.some(set => 
+      (set.weight && set.weight.isPlaceholder) || 
+      set.reps === '?' || 
+      (set.dropSet && (Array.isArray(set.dropSet) ? 
+        set.dropSet.some(ds => ds.isPlaceholder || ds.reps === '?') :
+        set.dropSet.isPlaceholder || set.dropSet.reps === '?'))
+    )) {
+      return errors;
+    }
+
+    // Add missing BW prefix for known bodyweight exercises
+    if (!exercise.prefix && VALID_BW_EXERCISES.has(exerciseName)) {
+      exercise.prefix = 'BW';
+    }
+
     // Validate equipment prefix matches exercise name
     if (exercise.prefix === 'BB' && 
         !this.validBBExercises.has(exerciseName)) {
@@ -153,8 +169,28 @@ export class WorkoutParser {
       const setLine = startLine + idx + 1;
       const lineContent = lines[setLine - 1] || '';
 
-      // Validate bodyweight usage
-      if (set.weight.isBodyWeight && !VALID_BW_EXERCISES.has(exerciseName)) {
+      // Skip validation for placeholder values
+      if (set.weight.isPlaceholder || set.reps === '?' || 
+          (set.dropSet && (Array.isArray(set.dropSet) ? 
+            set.dropSet.some(ds => ds.isPlaceholder || ds.reps === '?') :
+            set.dropSet.isPlaceholder || set.dropSet.reps === '?'))) {
+        continue;
+      }
+
+      // Handle bodyweight exercises
+      if (exercise.prefix === 'BW') {
+        if (!set.weight.isBodyWeight) {
+          errors.push({
+            message: `Bodyweight exercises must use bodyweight: "${exercise.name}"`,
+            line: setLine,
+            column: lineContent.indexOf('x') - 2,
+            type: 'validation'
+          });
+          break;
+        }
+      }
+      // Handle non-bodyweight exercises
+      else if (set.weight.isBodyWeight) {
         errors.push({
           message: `Cannot use bodyweight for non-bodyweight exercise: "${exercise.name}"`,
           line: setLine,
@@ -187,9 +223,10 @@ export class WorkoutParser {
 
       // Validate drop sets
       if (set.dropSet) {
-        // For bodyweight exercises, both weights must be bodyweight
-        if (VALID_BW_EXERCISES.has(exerciseName)) {
-          if (!set.weight.isBodyWeight || !set.dropSet.isBodyWeight) {
+        const dropSets = Array.isArray(set.dropSet) ? set.dropSet : [set.dropSet];
+        for (const dropSet of dropSets) {
+          // For bodyweight exercises, both weights must be bodyweight
+          if (exercise.prefix === 'BW' && !dropSet.isBodyWeight) {
             errors.push({
               message: 'Bodyweight exercises must use bodyweight for drop sets',
               line: setLine,
@@ -198,21 +235,20 @@ export class WorkoutParser {
             });
             break;
           }
-        }
-        // For weighted exercises, both weights must be weighted
-        else if (exercise.prefix === 'BB' || exercise.prefix === 'DB') {
-          if (set.dropSet.isBodyWeight || set.weight.isBodyWeight) {
+          // For dumbbell exercises, ensure modifiers are present
+          if (exercise.prefix === 'DB' && !dropSet.modifier) {
             errors.push({
-              message: 'Weighted exercises cannot use bodyweight for drop sets',
+              message: 'Dumbbell exercises require a weight modifier (ea/sole)',
               line: setLine,
               column: lineContent.indexOf('->') + 2,
               type: 'validation'
             });
             break;
           }
-          if (set.dropSet.modifier !== set.weight.modifier) {
+          // For barbell exercises, ensure no modifiers are present
+          if (exercise.prefix === 'BB' && dropSet.modifier) {
             errors.push({
-              message: 'Drop set must use the same weight modifier',
+              message: 'Barbell exercises should not have weight modifiers',
               line: setLine,
               column: lineContent.indexOf('->') + 2,
               type: 'validation'
@@ -273,7 +309,12 @@ export class WorkoutParser {
       output += padding;
       
       // Format weight
-      if (set.weight.isBodyWeight) {
+      if (set.weight.isPlaceholder) {
+        output += '?';
+        if (set.weight.modifier) {
+          output += set.weight.modifier;
+        }
+      } else if (set.weight.isBodyWeight) {
         output += 'bw';
         if (set.weight.bodyWeightModifier) {
           output += `${set.weight.bodyWeightModifier.operation}${set.weight.bodyWeightModifier.value}`;
@@ -288,16 +329,24 @@ export class WorkoutParser {
         output += ` F${set.failureNotes.join(',')}`;
       }
       if (set.dropSet) {
-        output += ' drop to ';
-        if (set.dropSet.isBodyWeight) {
-          output += 'bw';
-          if (set.dropSet.bodyWeightModifier) {
-            output += `${set.dropSet.bodyWeightModifier.operation}${set.dropSet.bodyWeightModifier.value}`;
+        const dropSets = Array.isArray(set.dropSet) ? set.dropSet : [set.dropSet];
+        for (const dropSet of dropSets) {
+          output += ' -> ';
+          if (dropSet.isPlaceholder) {
+            output += '?';
+            if (dropSet.modifier) {
+              output += dropSet.modifier;
+            }
+          } else if (dropSet.isBodyWeight) {
+            output += 'bw';
+            if (dropSet.bodyWeightModifier) {
+              output += `${dropSet.bodyWeightModifier.operation}${dropSet.bodyWeightModifier.value}`;
+            }
+          } else {
+            output += `${dropSet.value}${dropSet.modifier ? dropSet.modifier : ''}`;
           }
-        } else {
-          output += `${set.dropSet.value}${set.dropSet.modifier ? set.dropSet.modifier : ''}`;
+          output += ` x ${dropSet.reps}`;
         }
-        output += ` x ${set.dropSet.reps}`;
       }
       if (set.negatives) {
         output += ` x ${set.negatives} negatives`;

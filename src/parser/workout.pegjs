@@ -81,11 +81,12 @@ SplitExercise
 // Exercise definition
 ExerciseDefinition
   = prefix:ExercisePrefix? name:ExerciseName NL {
-    return { prefix, name: name.trim() };
+    const fullName = name.trim();
+    return { prefix: prefix || undefined, name: fullName };
   }
 
 ExercisePrefix
-  = ("BB" / "DB" / "BW") _ { return text().trim(); }
+  = ("BB" / "DB" / "BW" / "Cable" / "Machine") _ { return text().trim(); }
 
 ExerciseName
   = (!NL .)+ { return text(); }
@@ -93,14 +94,15 @@ ExerciseName
 // Set definition
 SetDefinition
   = _ weight:WeightSpec _ "x" _ reps:Integer modifiers:SetModifiers? {
-    return makeSet(
+    const set = {
       weight,
-      reps,
-      modifiers?.count,
-      modifiers?.failureNotes,
-      modifiers?.dropSet,
-      modifiers?.negatives
-    );
+      reps: reps === "?" ? "?" : parseInt(reps, 10),
+      failureNotes: modifiers?.failureNotes || undefined,
+      dropSet: modifiers?.dropSet || undefined,
+      negatives: modifiers?.negatives || undefined
+    };
+    const count = modifiers?.count === "?" ? "1" : (modifiers?.count || "1");
+    return Array(parseInt(count, 10)).fill(set);
   }
 
 SetModifiers
@@ -117,14 +119,20 @@ ForCount
   = _ "for" _ count:Integer { return count; }
 
 WeightSpec
-  = value:(BodyWeight / Number) modifier:WeightModifier? {
+  = value:(BodyWeight / Number / Placeholder) modifier:WeightModifier? {
     if (value === "bw") {
       return {
         value: 0,
         isBodyWeight: true,
         modifier: "bw"
       };
-    } else if (typeof value === "object") {
+    } else if (typeof value === "object" && 'isPlaceholder' in value) {
+      return {
+        value: 0,
+        isPlaceholder: true,
+        modifier: modifier
+      };
+    } else if (typeof value === "object" && 'modifier' in value) {
       return {
         value: 0,
         isBodyWeight: true,
@@ -139,8 +147,8 @@ WeightSpec
   }
 
 BodyWeight
-  = bw:("bw" / "Bw") mod:BodyWeightModifier? {
-    return mod ? { text: bw.toLowerCase(), modifier: mod } : "bw";
+  = bw:("bw" / "Bw" / "BW") mod:BodyWeightModifier? {
+    return mod ? { modifier: mod } : "bw";
   }
 
 BodyWeightModifier
@@ -160,8 +168,11 @@ FailureNotes
   }
 
 DropSet
-  = _ "->" _ weight:WeightSpec _ "x" _ reps:Integer {
-    return { ...weight, reps: parseInt(reps, 10) };
+  = drops:(_ "->" _ weight:WeightSpec _ "x" _ reps:Integer)+ {
+    return drops.map(([_, __, ___, weight, ____, _____, ______, reps]) => ({
+      ...weight,
+      reps: reps === "?" ? "?" : parseInt(reps, 10)
+    }));
   }
 
 Negatives
@@ -171,10 +182,17 @@ Negatives
 
 // Basic elements
 Integer "integer"
-  = [0-9]+ { return text(); }
+  = digits:[0-9]+ { return digits.join(''); }
+  / "?" { return "?"; }
 
 Number "number"
-  = Integer ("." Integer)? { return text(); }
+  = digits:([0-9]+ ("." [0-9]+)?) { 
+    return digits.flat().join('');
+  }
+  / Placeholder
+
+Placeholder "placeholder"
+  = "?" { return { isPlaceholder: true }; }
 
 _ "whitespace"
   = [ \t]*

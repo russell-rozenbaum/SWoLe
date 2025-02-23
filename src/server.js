@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const path_1 = __importDefault(require("path"));
 const WorkoutParser_1 = require("./parser/WorkoutParser");
 const exerciseReference_1 = require("./data/exerciseReference");
+const exercises_1 = require("./types/exercises");
 const app = (0, express_1.default)();
 const port = 3000;
 // Middleware
@@ -82,6 +83,13 @@ app.get('/api/muscle-groups', (_req, res) => {
     res.json({
         success: true,
         muscleGroups: Array.from(muscleGroups).sort()
+    });
+});
+// Add new endpoint for exercise validation data
+app.get('/api/exercise-validation', (_req, res) => {
+    res.json({
+        success: true,
+        exerciseEquipment: exercises_1.EXERCISE_EQUIPMENT
     });
 });
 app.listen(port, () => {

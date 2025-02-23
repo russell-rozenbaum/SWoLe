@@ -3,7 +3,8 @@ import { ExerciseReference } from '../types';
 export const exerciseReference: ExerciseReference[] = [
   // Push Exercises - Chest
   {
-    name: 'Flat Bench',
+    name: 'Bench Press',
+    variations: ['Flat Bench', 'Bench Press', 'Incline Bench', 'Decline Bench'],
     category: 'Push',
     muscleGroups: ['Chest', 'Front Deltoids', 'Triceps'],
     equipment: ['BB'],
@@ -12,7 +13,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BB Bench Press\n? x ? for ?'
   },
   {
-    name: 'DB Seated Should Press',
+    name: 'Shoulder Press',
+    variations: ['Shoulder Press', 'Military Press', 'Overhead Press'],
     category: 'Push',
     muscleGroups: ['Front Deltoids', 'Side Deltoids', 'Triceps'],
     equipment: ['DB'],
@@ -21,7 +23,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'DB Shoulder Press\n?ea x ? for ?'
   },
   {
-    name: 'DB Skullcrushers',
+    name: 'Skullcrushers',
+    variations: ['Skullcrushers', 'Tricep Extension'],
     category: 'Push',
     muscleGroups: ['Triceps'],
     equipment: ['DB'],
@@ -30,7 +33,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'DB Skullcrushers\n?ea x ? for ?'
   },
   {
-    name: 'EZ Bar Skullcrushers',
+    name: 'Skullcrushers',
+    variations: ['Skullcrushers', 'Tricep Extension'],
     category: 'Push',
     muscleGroups: ['Triceps'],
     equipment: ['BB'],
@@ -39,7 +43,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BB Skullcrushers\n? x ? for ?'
   },
   {
-    name: 'DB Should Flies',
+    name: 'Shoulder Flies',
+    variations: ['Shoulder Flies', 'Lateral Raise', 'Side Raise'],
     category: 'Push',
     muscleGroups: ['Side Deltoids', 'Front Deltoids'],
     equipment: ['DB'],
@@ -48,7 +53,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'DB Shoulder Flies\n?ea x ? for ?'
   },
   {
-    name: 'Cable Tricep Pushdowns',
+    name: 'Tricep Pushdown',
+    variations: ['Tricep Pushdown', 'Pushdown', 'Rope Pushdown'],
     category: 'Push',
     muscleGroups: ['Triceps'],
     equipment: ['Cable'],
@@ -57,7 +63,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'Cable Tricep Pushdown\n? x ? for ?'
   },
   {
-    name: 'Seated Chest Flies',
+    name: 'Chest Flies',
+    variations: ['Chest Flies', 'Pec Flies', 'Pec Deck'],
     category: 'Push',
     muscleGroups: ['Chest', 'Front Deltoids'],
     equipment: ['Machine'],
@@ -67,6 +74,7 @@ export const exerciseReference: ExerciseReference[] = [
   },
   {
     name: 'Push Ups',
+    variations: ['Push Ups', 'Pushups', 'Push-Ups'],
     category: 'Push',
     muscleGroups: ['Chest', 'Front Deltoids', 'Triceps'],
     equipment: ['BW'],
@@ -77,7 +85,8 @@ export const exerciseReference: ExerciseReference[] = [
 
   // Pull Exercises
   {
-    name: 'DB Rows',
+    name: 'Row',
+    variations: ['Row', 'Single Arm Row', 'Bent Over Row'],
     category: 'Pull',
     muscleGroups: ['Upper Back', 'Lats', 'Biceps'],
     equipment: ['DB'],
@@ -87,6 +96,7 @@ export const exerciseReference: ExerciseReference[] = [
   },
   {
     name: 'Pull Ups',
+    variations: ['Pull Ups', 'Pullups', 'Pull-Ups', 'Wide Grip Pull Ups'],
     category: 'Pull',
     muscleGroups: ['Lats', 'Upper Back', 'Biceps'],
     equipment: ['BW'],
@@ -95,7 +105,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BW Pull Ups\nbw x ? for ?'
   },
   {
-    name: 'Lat Pulldowns',
+    name: 'Lat Pulldown',
+    variations: ['Lat Pulldown', 'Pulldown', 'Wide Grip Pulldown'],
     category: 'Pull',
     muscleGroups: ['Lats', 'Upper Back', 'Biceps'],
     equipment: ['Cable'],
@@ -104,7 +115,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'Cable Lat Pulldown\n? x ? for ?'
   },
   {
-    name: 'EZ Bar Curls',
+    name: 'Curl',
+    variations: ['Curl', 'Bicep Curl', 'EZ Bar Curl'],
     category: 'Pull',
     muscleGroups: ['Biceps', 'Forearms'],
     equipment: ['BB'],
@@ -113,7 +125,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BB Curl\n? x ? for ?'
   },
   {
-    name: 'DB Curls',
+    name: 'Curl',
+    variations: ['Curl', 'Bicep Curl', 'Hammer Curl'],
     category: 'Pull',
     muscleGroups: ['Biceps', 'Forearms'],
     equipment: ['DB'],
@@ -122,16 +135,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'DB Curl\n?ea x ? for ?'
   },
   {
-    name: 'Cable Lat Pulldowns',
-    category: 'Pull',
-    muscleGroups: ['Lats', 'Upper Back', 'Biceps'],
-    equipment: ['Cable'],
-    weightType: 'weighted',
-    description: 'Variation of lat pulldown focusing on mind-muscle connection',
-    template: 'Cable Lat Pulldown\n? x ? for ?'
-  },
-  {
-    name: 'DB Shrugs',
+    name: 'Shrugs',
+    variations: ['Shrugs', 'Shoulder Shrugs'],
     category: 'Pull',
     muscleGroups: ['Traps'],
     equipment: ['DB'],
@@ -142,7 +147,8 @@ export const exerciseReference: ExerciseReference[] = [
 
   // Legs Exercises
   {
-    name: 'BB RDLs',
+    name: 'RDL',
+    variations: ['RDL', 'Romanian Deadlift', 'Stiff Leg Deadlift'],
     category: 'Legs',
     muscleGroups: ['Hamstrings', 'Lower Back', 'Glutes'],
     equipment: ['BB'],
@@ -151,7 +157,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BB RDL\n? x ? for ?'
   },
   {
-    name: 'Seated Ham Curls',
+    name: 'Ham Curl',
+    variations: ['Ham Curl', 'Hamstring Curl', 'Leg Curl'],
     category: 'Legs',
     muscleGroups: ['Hamstrings'],
     equipment: ['Machine'],
@@ -160,7 +167,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'Machine Ham Curl\n? x ? for ?'
   },
   {
-    name: 'Abductors',
+    name: 'Abductor',
+    variations: ['Abductor', 'Hip Abductor'],
     category: 'Legs',
     muscleGroups: ['Glutes', 'Hip Flexors'],
     equipment: ['Machine'],
@@ -169,7 +177,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'Machine Abductor\n? x ? for ?'
   },
   {
-    name: 'Leg Press Calf Raises',
+    name: 'Calf Raise',
+    variations: ['Calf Raise', 'Standing Calf Raise', 'Seated Calf Raise'],
     category: 'Legs',
     muscleGroups: ['Calves'],
     equipment: ['Machine'],
@@ -178,7 +187,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'Machine Calf Raise\n? x ? for ?'
   },
   {
-    name: 'Side Glute Raises',
+    name: 'Side Glute Raise',
+    variations: ['Side Glute Raise', 'Hip Abduction'],
     category: 'Legs',
     muscleGroups: ['Glutes', 'Hip Flexors'],
     equipment: ['BW'],
@@ -187,7 +197,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BW Side Glute Raise\nbw x ? for ?'
   },
   {
-    name: 'Hip Flexor Raises',
+    name: 'Hip Flexor Raise',
+    variations: ['Hip Flexor Raise', 'Standing Leg Raise'],
     category: 'Legs',
     muscleGroups: ['Hip Flexors'],
     equipment: ['BW'],
@@ -196,7 +207,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BW Hip Flexor Raise\nbw x ? for ?'
   },
   {
-    name: 'BB Squat',
+    name: 'Squat',
+    variations: ['Squat', 'Back Squat', 'Front Squat'],
     category: 'Legs',
     muscleGroups: ['Quads', 'Glutes', 'Hamstrings'],
     equipment: ['BB'],
@@ -205,7 +217,8 @@ export const exerciseReference: ExerciseReference[] = [
     template: 'BB Squat\n? x ? for ?'
   },
   {
-    name: 'Bodyweight Squats',
+    name: 'Squat',
+    variations: ['Squat', 'Bodyweight Squat', 'Air Squat'],
     category: 'Legs',
     muscleGroups: ['Quads', 'Glutes', 'Hamstrings'],
     equipment: ['BW'],
@@ -215,6 +228,7 @@ export const exerciseReference: ExerciseReference[] = [
   },
   {
     name: 'Dips',
+    variations: ['Dips', 'Chest Dips', 'Tricep Dips'],
     category: 'Push',
     muscleGroups: ['Chest', 'Triceps', 'Front Deltoids'],
     equipment: ['BW'],

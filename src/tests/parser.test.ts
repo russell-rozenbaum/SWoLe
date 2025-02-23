@@ -41,7 +41,7 @@ BB Bench Press
 225 x 5
 225 x 5
 DB Curl
-30ea x 12 drop to 25ea x 10
+30ea x 12 -> 25ea x 10
 `
     },
     {
@@ -89,7 +89,7 @@ bw+25 x 5 -> bw x 5`,
       shouldPass: true,
       expectedOutput: `1/24/2024
 BW Pull Ups
-bw+25 x 5 drop to bw x 5
+bw+25 x 5 -> bw x 5
 `
     },
     {
@@ -104,7 +104,7 @@ bw x 20 for 3`,
       shouldPass: true,
       expectedOutput: `1/24/2024
 BW Pull Ups
-bw+45 x 5 drop to bw x 8
+bw+45 x 5 -> bw x 8
 bw x 10 F8,9,10
 BW Push Ups
 bw x 20
@@ -163,6 +163,143 @@ DB Curl
 Pull Ups
 Bw x 5 x 2 negatives`,
       shouldPass: true
+    },
+    {
+      name: "Basic barbell exercise with multiple sets",
+      input: `01/24/2024
+BB Bench Press
+135 x 10 for 3`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+BB Bench Press
+135 x 10
+135 x 10
+135 x 10
+`
+    },
+    {
+      name: "Mixed exercise types",
+      input: `01/24/2024
+BB Bench Press
+135 x 10 for 2
+
+DB Curl
+30ea x 12 for 2
+
+BW Pull Ups
+bw x 8 for 2`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+BB Bench Press
+135 x 10
+135 x 10
+DB Curl
+30ea x 12
+30ea x 12
+BW Pull Ups
+bw x 8
+bw x 8
+`
+    },
+    {
+      name: "Exercise with placeholders",
+      input: `01/24/2024
+BB Bench Press
+? x ? for ?
+
+DB Curl
+?ea x ? for ?`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+BB Bench Press
+? x ?
+DB Curl
+?ea x ?
+`
+    },
+    {
+      name: "Exercise with mixed placeholders",
+      input: `01/24/2024
+BB Bench Press
+225 x ? for 3
+
+DB Curl
+?ea x 12 for ?`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+BB Bench Press
+225 x ?
+225 x ?
+225 x ?
+DB Curl
+?ea x 12
+`
+    },
+    {
+      name: "Multiple drop sets",
+      input: `01/24/2024
+DB Shoulder Flies
+25ea x 15 -> 20ea x 10 -> 15ea x 10`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+DB Shoulder Flies
+25ea x 15 -> 20ea x 10 -> 15ea x 10
+`
+    },
+    {
+      name: "Drop set with increasing weights",
+      input: `01/24/2024
+DB Shoulder Flies
+25ea x 15 -> 30ea x 5 -> 35ea x 3`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+DB Shoulder Flies
+25ea x 15 -> 30ea x 5 -> 35ea x 3
+`
+    },
+    {
+      name: "Exercise prefix validation",
+      input: `01/24/2024
+BB Bench Press
+225 x 5 for 3
+
+split {
+  DB Row
+  75ea x 8 for 3
+
+  BB Squat
+  315 x 5 for 3
+}`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+BB Bench Press
+225 x 5
+225 x 5
+225 x 5
+split {
+  DB Row
+  75ea x 8
+  75ea x 8
+  75ea x 8
+  BB Squat
+  315 x 5
+  315 x 5
+  315 x 5
+}
+`
+    },
+    {
+      name: "Exercise without prefix",
+      input: `01/24/2024
+Bench Press
+225 x 5 for 3`,
+      shouldPass: true,
+      expectedOutput: `1/24/2024
+Bench Press
+225 x 5
+225 x 5
+225 x 5
+`
     },
 
     // Error cases
@@ -236,12 +373,12 @@ bw x 10 for 3`,
       expectedErrors: ["Cannot use bodyweight for non-bodyweight exercise"]
     },
     {
-      name: "Mixed weight types in drop set",
+      name: "Invalid drop set format",
       input: `01/24/2024
-BB Bench Press
-225 x 5 -> bw x 10`,
+DB Curl
+30ea x 12 drop 25ea x 10`,
       shouldPass: false,
-      expectedErrors: ["Drop set must use the same weight type"]
+      expectedErrors: ["Expected ->"]
     }
   ];
 

@@ -124,6 +124,7 @@
     <script>
         let editor;
         let exerciseReference = [];
+        let exerciseEquipment = {};
         let currentOutput = { formatted: '', json: '' };
         let errorWidgets = [];
 
@@ -135,36 +136,138 @@
             const muscleFilter = document.getElementById('muscleFilter');
             const exerciseList = document.getElementById('exerciseList');
 
-            // Load exercise reference data first
-            fetch('/api/exercises')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        exerciseReference = data.exercises;
-                        initializeEditor();
-                        loadExercises();
-                    }
-                });
+            // Load exercise validation data first
+            Promise.all([
+                fetch('/api/exercises').then(res => res.json()),
+                fetch('/api/exercise-validation').then(res => res.json())
+            ]).then(([exerciseData, validationData]) => {
+                if (exerciseData.success && validationData.success) {
+                    console.log('Loaded exercise data:', exerciseData);
+                    console.log('Loaded validation data:', validationData);
+                    exerciseReference = exerciseData.exercises;
+                    exerciseEquipment = validationData.exerciseEquipment;
+                    initializeEditor();
+                    loadExercises();
+                }
+            });
 
             function initializeEditor() {
                 // Initialize CodeMirror with custom mode
                 CodeMirror.defineMode("workoutlog", function() {
+                    function isExerciseValid(prefix, fullName) {
+                        if (!prefix || !fullName) return false;
+                        const name = fullName.toLowerCase().trim();
+                        
+                        // Check if this exact name exists in exerciseEquipment
+                        for (const [variant, equipment] of Object.entries(exerciseEquipment)) {
+                            if (variant.toLowerCase() === name && equipment.includes(prefix)) {
+                                return true;
+                            }
+                        }
+                        
+                        // If no exact match, check if it's a partial match
+                        const matches = Object.entries(exerciseEquipment).filter(([variant, equipment]) => {
+                            const variantLower = variant.toLowerCase();
+                            // Only match complete words to avoid partial word matches
+                            const nameWords = name.split(/\s+/);
+                            const variantWords = variantLower.split(/\s+/);
+                            return nameWords.every(word => variantWords.includes(word)) &&
+                                   equipment.includes(prefix);
+                        });
+                        
+                        return matches.length === 1;
+                    }
+
                     return {
                         token: function(stream, state) {
-                            if (stream.sol()) {
-                                // At start of line, check for exercise names
-                                let line = stream.string;
-                                let exerciseMatch = line.match(/^(BB|DB|BW|Cable|Machine)\s+[A-Za-z\s]+/);
-                                if (exerciseMatch) {
-                                    let exerciseName = exerciseMatch[0].trim();
-                                    if (isValidExercise(exerciseName)) {
-                                        stream.skipToEnd();
-                                        return "exercise-valid";
-                                    }
+                            // Date pattern at start of line
+                            if (stream.sol() && stream.match(/\d{2}\/\d{2}\/\d{4}/)) {
+                                return "date";
+                            }
+
+                            // Split block syntax - check this before exercise names
+                            if (stream.sol() && stream.match(/split/)) {
+                                return "split-set";
+                            }
+                            if (stream.match(/[{}]/)) {
+                                return "split-set";
+                            }
+
+                            // Handle indentation in split blocks
+                            if (state.inSplit && stream.sol() && stream.match(/^\s+/)) {
+                                return null;
+                            }
+
+                            // Exercise prefixes at start of line or after split indentation
+                            if ((stream.sol() || (state.inSplit && stream.pos === stream.indentation())) && 
+                                stream.match(/(BB|DB|BW|Cable|Machine)\s+/)) {
+                                const prefix = stream.string.match(/(BB|DB|BW|Cable|Machine)/)[0];
+                                state.expectExerciseName = true;
+                                state.prefix = prefix;
+                                return "exercise-prefix";
+                            }
+
+                            // Exercise names after prefix or at start
+                            if (state.expectExerciseName || 
+                               (stream.sol() || (state.inSplit && stream.pos === stream.indentation())) && 
+                               stream.match(/^[A-Za-z]/)) {
+                                const restOfLine = stream.string.slice(stream.pos);
+                                const match = restOfLine.match(/^([A-Za-z][A-Za-z\s]+?)(?=\n|$|\s+\d|\s+\?|\s+for|\s+x|\s*{)/);
+                                if (match) {
+                                    const fullName = match[1].trim();
+                                    const isValid = isExerciseValid(state.prefix, fullName);
+                                    
+                                    // Consume the exercise name
+                                    stream.match(/[A-Za-z][A-Za-z\s]+/);
+                                    state.expectExerciseName = false;
+                                    state.prefix = null;
+                                    return isValid ? "exercise-valid" : "exercise-name";
                                 }
                             }
-                            stream.skipToEnd();
+
+                            // Update split state after checking for split keyword
+                            if (stream.string.includes('split') && stream.string.includes('{')) {
+                                state.inSplit = true;
+                            }
+                            if (stream.string.includes('}')) {
+                                state.inSplit = false;
+                            }
+
+                            // Weight modifiers and special keywords
+                            if (stream.match(/\b(ea|sole|bw)\b/)) {
+                                return "weight-modifier";
+                            }
+
+                            // Numbers
+                            if (stream.match(/\d+/)) {
+                                return "number";
+                            }
+
+                            // Drop set arrow
+                            if (stream.match(/->/)) {
+                                return "drop-set";
+                            }
+
+                            // Placeholder ?
+                            if (stream.match(/\?/)) {
+                                return "placeholder";
+                            }
+
+                            // Weight modifiers
+                            if (stream.match(/[+-]/)) {
+                                return "weight-modifier";
+                            }
+
+                            // Skip other characters
+                            stream.next();
                             return null;
+                        },
+                        startState: function() {
+                            return { 
+                                expectExerciseName: false, 
+                                inSplit: false,
+                                prefix: null
+                            };
                         }
                     };
                 });
@@ -180,6 +283,21 @@
                         'Shift-Tab': 'indentLess'
                     }
                 });
+
+                // Add custom styles for syntax highlighting
+                const customStyles = document.createElement('style');
+                customStyles.textContent = `
+                    .cm-exercise-prefix { color: #c4b5fd; font-weight: 500; }  /* Light purple */
+                    .cm-exercise-name { color: #6b7280; font-weight: 500; }    /* Gray */
+                    .cm-exercise-valid { color: #93c5fd; font-weight: 500; }   /* Baby blue */
+                    .cm-weight-modifier { color: #f6ad55; }                     /* Orange */
+                    .cm-number { color: #68d391; }                             /* Green */
+                    .cm-split-set { color: #ff6b6b; font-weight: bold; }       /* Bold reddish-orange */
+                    .cm-drop-set { color: #e03131; font-weight: 500; }         /* Rustic red */
+                    .cm-date { color: #a3bffa; }                               /* Light blue */
+                    .cm-placeholder { color: #34d399; font-weight: bold; }      /* Emerald green */
+                `;
+                document.head.appendChild(customStyles);
 
                 editor.setValue('01/24/2024\n');
             }

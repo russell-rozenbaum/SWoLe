@@ -3,6 +3,7 @@ import path from 'path';
 import { WorkoutParser } from './parser/WorkoutParser';
 import { exerciseReference } from './data/exerciseReference';
 import { Category, MuscleGroup } from './types';
+import { EXERCISE_EQUIPMENT } from './types/exercises';
 
 const app = express();
 const port = 3000;
@@ -91,6 +92,14 @@ app.get('/api/muscle-groups', (_req, res) => {
   res.json({
     success: true,
     muscleGroups: Array.from(muscleGroups).sort()
+  });
+});
+
+// Add new endpoint for exercise validation data
+app.get('/api/exercise-validation', (_req, res) => {
+  res.json({
+    success: true,
+    exerciseEquipment: EXERCISE_EQUIPMENT
   });
 });
 
