@@ -1,6 +1,7 @@
 import { WorkoutParser } from './parser/WorkoutParser';
 
-const testWorkout = `BB Bench Press
+const testWorkout = `01/01/2024
+BB Bench Press
 225 x 5 for 3
 
 DB Curl
@@ -17,23 +18,16 @@ split {
 const parser = new WorkoutParser();
 
 try {
-  const workout = parser.parse(testWorkout);
-  console.log('Parsed workout:', JSON.stringify(workout, null, 2));
+  const { workout, errors } = parser.parse(testWorkout);
   
-  console.log('\nFormatted workout:');
-  console.log(parser.formatWorkout(workout));
+  if (errors.length > 0) {
+    console.log('Parsing errors:', errors);
+  }
   
-  // Validate exercises
-  for (const block of workout.blocks) {
-    if (block.type === 'single') {
-      console.log(`\nValidating ${block.exercise.name}:`, 
-        parser.validateExercise(block.exercise));
-    } else {
-      for (const exercise of block.exercises) {
-        console.log(`\nValidating ${exercise.name}:`,
-          parser.validateExercise(exercise));
-      }
-    }
+  if (workout) {
+    console.log('Parsed workout:', JSON.stringify(workout, null, 2));
+    console.log('\nFormatted workout:');
+    console.log(parser.formatWorkout(workout));
   }
 } catch (error) {
   console.error('Error:', error);

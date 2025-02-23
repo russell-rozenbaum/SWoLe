@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkoutLog Parser</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+    <style>
+        .editor {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .exercise-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .exercise-card:hover {
+            transform: translateY(-2px);
+            background-color: #f3f4f6;
+        }
+        .CodeMirror {
+            height: auto;
+            min-height: 300px;
+            border-radius: 0.5rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .error-line {
+            background-color: rgba(255, 0, 0, 0.1);
+        }
+        .error-widget {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 400px;
+            white-space: pre-wrap;
+            margin-left: 40px;
+        }
+        .error-underline {
+            border-bottom: 2px wavy #dc2626;
+        }
+        .cm-exercise-valid {
+            color: #2563eb;
+            font-weight: 500;
+        }
+        .weight-type-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-right: 4px;
+        }
+        .weight-type-bodyweight {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .weight-type-weighted {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .weight-type-both {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">WorkoutLog Parser</h1>
+            <p class="text-gray-600">Parse and validate your workout logs using our custom DSL</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Input Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Input</h2>
+                <textarea id="workoutInput" class="hidden"></textarea>
+                <button id="parseButton" 
+                    class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    Parse Workout
+                </button>
+            </div>
+
+            <!-- Output Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Output</h2>
+                <div id="outputTabs" class="flex border-b mb-4">
+                    <button class="tab-button px-4 py-2 border-b-2 border-blue-500 text-blue-500">Formatted</button>
+                    <button class="tab-button px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">JSON</button>
+                </div>
+                <pre id="outputArea" class="editor w-full h-64 p-4 bg-gray-50 rounded-lg overflow-auto"></pre>
+            </div>
+
+            <!-- Exercise Reference Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Exercise Reference</h2>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
+                    <select id="categoryFilter" class="w-full p-2 border rounded-lg">
+                        <option value="">All Categories</option>
+                        <option value="Push">Push</option>
+                        <option value="Pull">Pull</option>
+                        <option value="Legs">Legs</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Muscle Group</label>
+                    <select id="muscleFilter" class="w-full p-2 border rounded-lg">
+                        <option value="">All Muscle Groups</option>
+                    </select>
+                </div>
+                <div id="exerciseList" class="mt-4 space-y-4 h-[calc(100vh-24rem)] overflow-y-auto pr-2">
+                    <!-- Exercise cards will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script>
+        let editor;
+        let exerciseReference = [];
+        let currentOutput = { formatted: '', json: '' };
+        let errorWidgets = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const parseButton = document.getElementById('parseButton');
+            const outputArea = document.getElementById('outputArea');
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const muscleFilter = document.getElementById('muscleFilter');
+            const exerciseList = document.getElementById('exerciseList');
+
+            // Load exercise reference data first
+            fetch('/api/exercises')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        exerciseReference = data.exercises;
+                        initializeEditor();
+                        loadExercises();
+                    }
+                });
+
+            function initializeEditor() {
+                // Initialize CodeMirror with custom mode
+                CodeMirror.defineMode("workoutlog", function() {
+                    return {
+                        token: function(stream, state) {
+                            if (stream.sol()) {
+                                // At start of line, check for exercise names
+                                let line = stream.string;
+                                let exerciseMatch = line.match(/^(BB|DB|BW|Cable|Machine)\s+[A-Za-z\s]+/);
+                                if (exerciseMatch) {
+                                    let exerciseName = exerciseMatch[0].trim();
+                                    if (isValidExercise(exerciseName)) {
+                                        stream.skipToEnd();
+                                        return "exercise-valid";
+                                    }
+                                }
+                            }
+                            stream.skipToEnd();
+                            return null;
+                        }
+                    };
+                });
+
+                editor = CodeMirror.fromTextArea(document.getElementById('workoutInput'), {
+                    mode: "workoutlog",
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    tabSize: 2,
+                    extraKeys: {
+                        'Tab': 'indentMore',
+                        'Shift-Tab': 'indentLess'
+                    }
+                });
+
+                editor.setValue('01/24/2024\n');
+            }
+
+            function clearErrors() {
+                // Clear error styling
+                editor.getAllMarks().forEach(mark => mark.clear());
+                errorWidgets.forEach(widget => widget.clear());
+                errorWidgets = [];
+                const doc = editor.getDoc();
+                for (let i = 0; i < doc.lineCount(); i++) {
+                    editor.removeLineClass(i, 'background', 'error-line');
+                }
+            }
+
+            function displayErrors(errors) {
+                clearErrors();
+                
+                errors.forEach(error => {
+                    const line = error.line - 1;
+                    const col = error.column - 1;
+                    
+                    // Add error line highlight
+                    editor.addLineClass(line, 'background', 'error-line');
+                    
+                    // Add error underline if we have column information
+                    if (col >= 0) {
+                        const lineText = editor.getLine(line);
+                        const endCol = error.found ? col + error.found.length : lineText.length;
+                        const from = { line, ch: col };
+                        const to = { line, ch: endCol };
+                        editor.markText(from, to, { className: 'error-underline' });
+                    }
+                    
+                    // Add error message widget
+                    const msg = document.createElement('div');
+                    msg.className = 'error-widget';
+                    msg.textContent = error.message;
+                    if (error.expected) {
+                        msg.textContent += `\nExpected: ${error.expected.join(', ')}`;
+                    }
+                    errorWidgets.push(editor.addLineWidget(line, msg));
+                });
+            }
+
+            // Function to check if an exercise name is valid
+            function isValidExercise(name) {
+                return exerciseReference.some(ex => 
+                    `${ex.equipment[0]} ${ex.name}`.toLowerCase() === name.toLowerCase()
+                );
+            }
+
+            // Function to insert exercise template at cursor
+            function insertExerciseTemplate(template) {
+                let doc = editor.getDoc();
+                let cursor = doc.getCursor();
+                let line = doc.getLine(cursor.line);
+                
+                // If we're not at the start of a line and the current line isn't empty,
+                // insert a newline first
+                if (cursor.ch !== 0 || line !== '') {
+                    if (line === '') {
+                        doc.replaceRange(template, cursor);
+                    } else {
+                        doc.replaceRange('\n' + template, cursor);
+                    }
+                } else {
+                    doc.replaceRange(template, cursor);
+                }
+            }
+
+            // Make insertExerciseTemplate available globally
+            window.insertExerciseTemplate = insertExerciseTemplate;
+
+            // Update exercise list rendering
+            function loadExercises() {
+                const category = categoryFilter.value;
+                const muscleGroup = muscleFilter.value;
+                const queryParams = new URLSearchParams();
+                if (category) queryParams.append('category', category);
+                if (muscleGroup) queryParams.append('muscleGroup', muscleGroup);
+
+                fetch(`/api/exercises?${queryParams}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            exerciseList.innerHTML = data.exercises.map(exercise => `
+                                <div class="exercise-card bg-gray-50 p-4 rounded-lg hover:bg-gray-100" 
+                                     onclick="insertExerciseTemplate(\`${exercise.template}\`)">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-semibold text-lg text-gray-800">${exercise.name}</h3>
+                                        <span class="weight-type-badge weight-type-${exercise.weightType}">
+                                            ${exercise.weightType}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="inline-block px-2 py-1 text-sm rounded bg-blue-100 text-blue-800 mr-2">
+                                            ${exercise.category}
+                                        </span>
+                                        ${exercise.equipment.map(eq => `
+                                            <span class="inline-block px-2 py-1 text-sm rounded bg-gray-200 text-gray-700 mr-2">
+                                                ${eq}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                    <div class="mt-2">
+                                        ${exercise.muscleGroups.map(muscle => `
+                                            <span class="inline-block px-2 py-1 text-sm rounded bg-green-100 text-green-800 mr-2 mb-2">
+                                                ${muscle}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                    <p class="text-sm text-gray-600 mt-2">${exercise.description || ''}</p>
+                                </div>
+                            `).join('');
+                        }
+                    });
+            }
+
+            // Load muscle groups
+            fetch('/api/muscle-groups')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        data.muscleGroups.forEach(muscle => {
+                            const option = document.createElement('option');
+                            option.value = muscle;
+                            option.textContent = muscle;
+                            muscleFilter.appendChild(option);
+                        });
+                    }
+                });
+
+            // Filter change handlers
+            categoryFilter.addEventListener('change', loadExercises);
+            muscleFilter.addEventListener('change', loadExercises);
+
+            // Tab switching
+            tabButtons.forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('border-blue-500', 'text-blue-500');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    });
+                    button.classList.remove('border-transparent', 'text-gray-500');
+                    button.classList.add('border-blue-500', 'text-blue-500');
+                    
+                    outputArea.textContent = index === 0 ? currentOutput.formatted : currentOutput.json;
+                });
+            });
+
+            // Parse button click handler
+            parseButton.addEventListener('click', async () => {
+                try {
+                    clearErrors();
+                    const response = await fetch('/api/parse', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ workoutText: editor.getValue() }),
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        currentOutput.formatted = data.formatted;
+                        currentOutput.json = JSON.stringify(data.workout, null, 2);
+                        
+                        const activeTabIndex = Array.from(tabButtons).findIndex(btn => 
+                            btn.classList.contains('border-blue-500'));
+                        outputArea.textContent = activeTabIndex === 0 ? 
+                            currentOutput.formatted : currentOutput.json;
+                    } else {
+                        if (data.errors) {
+                            displayErrors(data.errors);
+                        }
+                        if (data.workout) {
+                            currentOutput.formatted = data.formatted || '';
+                            currentOutput.json = JSON.stringify(data.workout, null, 2);
+                        }
+                    }
+                } catch (error) {
+                    displayErrors([{
+                        message: error.message,
+                        line: 1,
+                        column: 1,
+                        type: 'syntax'
+                    }]);
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
