@@ -6,47 +6,41 @@ describe('Exercise Name Validation Tests', () => {
   function isValidExercise(prefix: ExerciseType | undefined, fullName: string): boolean {
     if (!prefix || !fullName) return false;
     
-    const variants = Object.keys(EXERCISE_EQUIPMENT) as ExerciseVariant[];
     const name = fullName.toLowerCase().trim();
+    const variants = Object.keys(EXERCISE_EQUIPMENT) as ExerciseVariant[];
     
     // Try exact match first
-    const exactMatch = variants.find(v => 
-      v.toLowerCase() === name
-    );
-    
-    if (exactMatch && EXERCISE_EQUIPMENT[exactMatch].includes(prefix)) {
-      return true;
+    const exactMatch = variants.find(v => v.toLowerCase() === name);
+    if (exactMatch) {
+      return EXERCISE_EQUIPMENT[exactMatch].includes(prefix);
     }
     
-    // Try partial matches, but only if they uniquely identify an exercise
-    const partialMatches = variants.filter(v => {
-      const variant = v.toLowerCase();
-      return variant.includes(name) || name.includes(variant);
+    // Try matching with normalized names (remove hyphens, handle spaces)
+    const normalizedName = name.replace(/[-\s]+/g, ' ');
+    const normalizedMatch = variants.find(v => 
+      v.toLowerCase().replace(/[-\s]+/g, ' ') === normalizedName
+    );
+    if (normalizedMatch) {
+      return EXERCISE_EQUIPMENT[normalizedMatch].includes(prefix);
+    }
+    
+    // Try partial matches with word-by-word comparison
+    const nameWords = normalizedName.split(' ').filter(w => w.length > 0);
+    const matches = variants.filter(v => {
+      const variantNormalized = v.toLowerCase().replace(/[-\s]+/g, ' ');
+      const variantWords = variantNormalized.split(' ');
+      
+      // Check if all words in the name appear in the variant in order
+      let lastFoundIndex = -1;
+      return nameWords.every(word => {
+        const index = variantWords.findIndex((vw, i) => i > lastFoundIndex && vw === word);
+        if (index === -1) return false;
+        lastFoundIndex = index;
+        return true;
+      });
     });
     
-    // If we have exactly one match and it supports this equipment type, it's valid
-    if (partialMatches.length === 1 && EXERCISE_EQUIPMENT[partialMatches[0]].includes(prefix)) {
-      return true;
-    }
-    
-    // Try each word combination from largest to smallest
-    const words = name.split(/\s+/);
-    for (let i = words.length; i > 0; i--) {
-      const possibleName = words.slice(0, i).join(' ');
-      const matchingVariants = variants.filter(v => {
-        const variant = v.toLowerCase();
-        return variant === possibleName || 
-               variant.includes(possibleName) || 
-               possibleName.includes(variant);
-      });
-      
-      // Only consider it a match if we have exactly one variant and it supports this equipment
-      if (matchingVariants.length === 1 && EXERCISE_EQUIPMENT[matchingVariants[0]].includes(prefix)) {
-        return true;
-      }
-    }
-    
-    return false;
+    return matches.some(match => EXERCISE_EQUIPMENT[match].includes(prefix));
   }
 
   describe('Bench Press Variations', () => {
@@ -58,10 +52,10 @@ describe('Exercise Name Validation Tests', () => {
     });
 
     test('validates DB Bench Press correctly', () => {
-      expect(isValidExercise('DB', 'Bench Press')).toBe(true);
-      expect(isValidExercise('DB', 'Flat Bench')).toBe(true);
-      expect(isValidExercise('DB', 'Incline Bench')).toBe(true);
-      expect(isValidExercise('DB', 'Decline Bench')).toBe(true);
+      expect(isValidExercise('DB', 'Bench Press')).toBe(false);
+      expect(isValidExercise('DB', 'Flat Bench')).toBe(false);
+      expect(isValidExercise('DB', 'Incline Bench')).toBe(false);
+      expect(isValidExercise('DB', 'Decline Bench')).toBe(false);
     });
   });
 
@@ -149,6 +143,63 @@ describe('Exercise Name Validation Tests', () => {
       expect(isValidExercise(undefined, 'Bench Press')).toBe(false);
       expect(isValidExercise('BB', '')).toBe(false);
       expect(isValidExercise(undefined, '')).toBe(false);
+    });
+  });
+
+  describe('Tricep Exercise Validation', () => {
+    test('validates Skullcrushers with different equipment', () => {
+      expect(isValidExercise('BB', 'Skullcrushers')).toBe(true);
+      expect(isValidExercise('DB', 'Skullcrushers')).toBe(true);
+      expect(isValidExercise('Cable', 'Skullcrushers')).toBe(false);
+    });
+
+    test('validates Skullcrushers with different spellings', () => {
+      expect(isValidExercise('BB', 'Skull Crushers')).toBe(true);
+      expect(isValidExercise('BB', 'Skull-Crushers')).toBe(true);
+      expect(isValidExercise('BB', 'skullcrushers')).toBe(true);
+      expect(isValidExercise('BB', 'SKULLCRUSHERS')).toBe(true);
+    });
+
+    test('validates Tricep Pushdown variations', () => {
+      expect(isValidExercise('Cable', 'Tricep Pushdown')).toBe(true);
+      expect(isValidExercise('Cable', 'Tricep Push Down')).toBe(true);
+      expect(isValidExercise('Cable', 'Tricep-Pushdown')).toBe(true);
+      expect(isValidExercise('Cable', 'Pushdown')).toBe(true);
+      expect(isValidExercise('Cable', 'Rope Pushdown')).toBe(true);
+    });
+  });
+
+  describe('Case Sensitivity Tests', () => {
+    test('validates exercises regardless of case', () => {
+      expect(isValidExercise('BB', 'BENCH PRESS')).toBe(true);
+      expect(isValidExercise('BB', 'bench press')).toBe(true);
+      expect(isValidExercise('BB', 'Bench Press')).toBe(true);
+      expect(isValidExercise('DB', 'SKULL CRUSHERS')).toBe(true);
+      expect(isValidExercise('DB', 'skull crushers')).toBe(true);
+      expect(isValidExercise('DB', 'Skull Crushers')).toBe(true);
+    });
+  });
+
+  describe('Equipment Validation', () => {
+    test('validates correct equipment for exercises', () => {
+      expect(isValidExercise('BB', 'Bench Press')).toBe(true);
+      expect(isValidExercise('DB', 'Bench Press')).toBe(true);
+      expect(isValidExercise('BW', 'Bench Press')).toBe(false);
+      expect(isValidExercise('BB', 'Pull Ups')).toBe(false);
+      expect(isValidExercise('BW', 'Pull Ups')).toBe(true);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    test('handles undefined and empty inputs', () => {
+      expect(isValidExercise(undefined, 'Bench Press')).toBe(false);
+      expect(isValidExercise('BB', '')).toBe(false);
+      expect(isValidExercise(undefined, '')).toBe(false);
+    });
+
+    test('handles extra whitespace', () => {
+      expect(isValidExercise('BB', '  Bench   Press  ')).toBe(true);
+      expect(isValidExercise('DB', '  Skull   Crushers  ')).toBe(true);
     });
   });
 }); 

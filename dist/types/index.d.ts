@@ -24,7 +24,7 @@ export type WorkoutBlock = {
     type: 'single';
     exercise: Exercise;
 } | {
-    type: 'split';
+    type: 'superset';
     exercises: Exercise[];
 };
 export interface Workout {

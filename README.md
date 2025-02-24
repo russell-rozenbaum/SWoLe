@@ -6,7 +6,7 @@ A domain-specific language (DSL) for tracking and analyzing workout data.
 
 - Custom syntax for defining exercises and workouts
 - Support for barbell and dumbbell exercises
-- Split set tracking
+- superset tracking
 - Progress analysis and visualization
 - Web-based editor with syntax highlighting
 
@@ -28,10 +28,10 @@ DB Curl
 30ea x 12 for 3
 ```
 
-### Split Sets
+### superset Sets
 
 ```
-split {
+superset {
   BB Bench Press
   225 x 5 for 3
 

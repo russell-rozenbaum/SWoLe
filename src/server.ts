@@ -2,8 +2,9 @@ import express from 'express';
 import path from 'path';
 import { WorkoutParser } from './parser/WorkoutParser';
 import { exerciseReference } from './data/exerciseReference';
-import { Category, MuscleGroup } from './types';
+import { Category, MuscleGroup, ExerciseType } from './types';
 import { EXERCISE_EQUIPMENT } from './types/exercises';
+import { DOCUMENTATION_TEXT } from './data/documentation';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -106,10 +107,32 @@ app.get('/api/muscle-groups', (_req, res) => {
 
 // Add new endpoint for exercise validation data
 app.get('/api/exercise-validation', (_req, res) => {
+  // Create a map of exercise variants to their allowed equipment types
+  const validationData: Record<string, ExerciseType[]> = {};
+  
+  // Add all variants from EXERCISE_EQUIPMENT
+  Object.entries(EXERCISE_EQUIPMENT).forEach(([variant, equipment]) => {
+    validationData[variant] = equipment;
+  });
+  
+  // Add all variants from exerciseReference
+  exerciseReference.forEach(exercise => {
+    exercise.variations.forEach(variant => {
+      if (!validationData[variant]) {
+        validationData[variant] = exercise.equipment;
+      }
+    });
+  });
+
   res.json({
     success: true,
-    exerciseEquipment: EXERCISE_EQUIPMENT
+    exerciseEquipment: validationData
   });
+});
+
+// Add new endpoint for documentation
+app.get('/api/documentation', (_req, res) => {
+  res.type('text/plain').send(DOCUMENTATION_TEXT);
 });
 
 app.listen(port, () => {

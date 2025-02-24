@@ -124,9 +124,9 @@ DB Curl
       shouldPass: true
     },
     {
-      name: "Split set",
+      name: "superset set",
       input: `01/24/2024
-split {
+superset {
   BB Bench Press
   225 x 5 for 3
 
@@ -263,7 +263,7 @@ DB Shoulder Flies
 BB Bench Press
 225 x 5 for 3
 
-split {
+superset {
   DB Row
   75ea x 8 for 3
 
@@ -276,7 +276,7 @@ BB Bench Press
 225 x 5
 225 x 5
 225 x 5
-split {
+superset {
   DB Row
   75ea x 8
   75ea x 8

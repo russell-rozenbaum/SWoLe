@@ -51,7 +51,7 @@ NoteLine
 
 WorkoutBlock
   = SingleExercise
-  / SplitSet
+  / supersetSet
 
 // Single exercise block
 SingleExercise
@@ -62,18 +62,18 @@ SingleExercise
     };
   }
 
-// Split set block
-SplitSet
-  = "split" _ "{" NL*
-    exercises:(SplitExercise NL*)+
+// superset set block
+supersetSet
+  = "superset" _ "{" NL*
+    exercises:(supersetExercise NL*)+
     "}" {
     return {
-      type: 'split',
+      type: 'superset',
       exercises: exercises.map(e => e[0])
     };
   }
 
-SplitExercise
+supersetExercise
   = _ exercise:ExerciseDefinition sets:(SetDefinition NL*)+ {
     return makeExercise(exercise.prefix, exercise.name, sets.map(s => s[0]).flat());
   }
@@ -174,6 +174,9 @@ DropSet
       reps: reps === "?" ? "?" : parseInt(reps, 10)
     }));
   }
+  / _ "drop" _ { error("Expected ->"); }
+  / _ "-" [^>] { error("Expected ->"); }
+  / _ "->" [^x\s]* { error("Expected weight x reps"); }
 
 Negatives
   = _ "x" _ count:Integer _ "negative" "s"? {

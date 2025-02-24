@@ -68,7 +68,7 @@ export interface Exercise {
 
 export type WorkoutBlock = 
   | { type: 'single'; exercise: Exercise }
-  | { type: 'split'; exercises: Exercise[] };
+  | { type: 'superset'; exercises: Exercise[] };
 
 export interface Workout {
   date: Date;

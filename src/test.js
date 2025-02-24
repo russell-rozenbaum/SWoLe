@@ -8,7 +8,7 @@ BB Bench Press
 DB Curl
 30ea x 12 for 3
 
-split {
+superset {
   BB Squat
   315 x 5 for 3
 

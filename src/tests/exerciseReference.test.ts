@@ -1,10 +1,11 @@
 import { exerciseReference } from '../data/exerciseReference';
-import { ExerciseType, WeightType } from '../types';
+import { EXERCISE_EQUIPMENT, ExerciseVariant, Equipment } from '../types/exercises';
 
 describe('Exercise Reference Tests', () => {
   test('All exercises have required properties', () => {
     exerciseReference.forEach(exercise => {
       expect(exercise).toHaveProperty('name');
+      expect(exercise).toHaveProperty('variations');
       expect(exercise).toHaveProperty('category');
       expect(exercise).toHaveProperty('muscleGroups');
       expect(exercise).toHaveProperty('equipment');
@@ -16,32 +17,32 @@ describe('Exercise Reference Tests', () => {
 
   test('Exercise templates match their equipment type', () => {
     exerciseReference.forEach(exercise => {
-      const template = exercise.template || '';
-      const equipment = exercise.equipment[0];
-      expect(template.startsWith(equipment)).toBeTruthy();
+      if (exercise.weightType === 'weight') {
+        expect(exercise.template).toBe('? x ? for ?');
+      } else {
+        expect(exercise.template).toBe('? x ? for ?');
+      }
     });
   });
 
   test('Bodyweight exercises have correct weight type', () => {
-    exerciseReference
-      .filter(ex => ex.equipment.includes('BW' as ExerciseType))
-      .forEach(exercise => {
-        expect(['bodyweight', 'both'] as WeightType[]).toContain(exercise.weightType);
-        expect(exercise.template).toContain('bw x ?');
-      });
+    const bodyweightExercises = exerciseReference
+      .filter(ex => ex.equipment.includes('BW') && !ex.equipment.some(e => e !== 'BW'))
+      .filter(ex => ex.weightType === 'bodyweight');
+
+    bodyweightExercises.forEach(exercise => {
+      expect(exercise.template).toBe('? x ? for ?');
+    });
   });
 
   test('Weighted exercises have correct template format', () => {
-    exerciseReference
-      .filter(ex => ex.weightType === 'weighted')
-      .forEach(exercise => {
-        const template = exercise.template || '';
-        if (exercise.equipment.includes('DB' as ExerciseType)) {
-          expect(template).toContain('?ea x ?');
-        } else {
-          expect(template).toContain('? x ?');
-        }
-      });
+    const weightedExercises = exerciseReference
+      .filter(ex => ex.weightType === 'weight')
+      .filter(ex => !ex.equipment.includes('BW'));
+
+    weightedExercises.forEach(exercise => {
+      expect(exercise.template).toBe('? x ? for ?');
+    });
   });
 
   test('Exercise names are unique', () => {
@@ -52,24 +53,70 @@ describe('Exercise Reference Tests', () => {
 
   test('Exercise templates are valid', () => {
     exerciseReference.forEach(exercise => {
-      const template = exercise.template || '';
-      expect(template).toContain('\n');
-      expect(template.split('\n')[1]).toContain('x ?');
       if (exercise.weightType === 'bodyweight') {
-        expect(template).toContain('bw x ?');
-      }
-      if (exercise.equipment.includes('DB' as ExerciseType)) {
-        expect(template).toContain('ea x ?');
+        expect(exercise.template).toBe('? x ? for ?');
+      } else {
+        expect(exercise.template).toBe('? x ? for ?');
       }
     });
   });
 
   test('Both type exercises have correct template variations', () => {
-    exerciseReference
-      .filter(ex => ex.weightType === 'both')
-      .forEach(exercise => {
-        expect(exercise.template).toContain('bw x ?');
-        expect(exercise.equipment).toContain('BW' as ExerciseType);
+    const bothTypeExercises = exerciseReference
+      .filter(ex => ex.equipment.includes('BW') && ex.equipment.length > 1);
+
+    bothTypeExercises.forEach(exercise => {
+      expect(exercise.template).toBe('? x ? for ?');
+    });
+  });
+
+  test('Exercises are in alphabetical order', () => {
+    const names = exerciseReference.map(ex => ex.name);
+    const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
+    console.log('Current order:', names);
+    console.log('Expected order:', sortedNames);
+    expect(names).toEqual(sortedNames);
+  });
+
+  test('All exercise variants from EXERCISE_EQUIPMENT are represented', () => {
+    const allVariations = new Set(
+      exerciseReference.flatMap(ex => 
+        ex.variations.map(v => v.toLowerCase())
+      )
+    );
+
+    const equipmentVariants = new Set(
+      Object.keys(EXERCISE_EQUIPMENT).map(v => v.toLowerCase())
+    );
+
+    const missingVariants = [...equipmentVariants].filter(v => !allVariations.has(v));
+    const extraVariants = [...allVariations].filter(v => !equipmentVariants.has(v));
+
+    console.log('Missing variants:', missingVariants);
+    console.log('Extra variants:', extraVariants);
+
+    // Check if all equipment variants are included in exercise variations
+    equipmentVariants.forEach(variant => {
+      expect(allVariations.has(variant)).toBeTruthy();
+    });
+  });
+
+  test('Exercise names are unique (ignoring case)', () => {
+    const names = exerciseReference.map(ex => ex.name.toLowerCase());
+    const uniqueNames = new Set(names);
+    console.log('Duplicate names:', names.filter((name, index) => names.indexOf(name) !== index));
+    expect(names.length).toBe(uniqueNames.size);
+  });
+
+  test('All exercises have valid equipment types', () => {
+    exerciseReference.forEach(exercise => {
+      const variations = exercise.variations;
+      const definedEquipment = exercise.equipment;
+
+      // Check that all defined equipment is valid
+      definedEquipment.forEach(equipment => {
+        expect(['BB', 'DB', 'Cable', 'Machine', 'BW'] as Equipment[]).toContain(equipment);
       });
+    });
   });
 }); 

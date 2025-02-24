@@ -126,7 +126,7 @@ class WorkoutParser {
                     }
                     currentLine += exercise.sets.length + 1;
                 });
-                currentLine += 2; // Account for split block syntax
+                currentLine += 2; // Account for superset block syntax
             }
         });
         return errors;
@@ -278,7 +278,7 @@ class WorkoutParser {
                 output += this.formatExercise(block.exercise);
             }
             else {
-                output += 'split {\n';
+                output += 'superset {\n';
                 for (const exercise of block.exercises) {
                     output += this.formatExercise(exercise, 2);
                 }

@@ -7,78 +7,69 @@ const express_1 = __importDefault(require("express"));
 const path_1 = __importDefault(require("path"));
 const WorkoutParser_1 = require("./parser/WorkoutParser");
 const exerciseReference_1 = require("./data/exerciseReference");
+const exercises_1 = require("./types/exercises");
+const documentation_1 = require("./data/documentation");
 const app = (0, express_1.default)();
-const port = 3000;
+const port = process.env.PORT || 3000;
 // Middleware
 app.use(express_1.default.json());
 app.use(express_1.default.static(path_1.default.join(__dirname, '../public')));
 // Initialize parser
 const parser = new WorkoutParser_1.WorkoutParser();
+// Serve index.html for all routes (for GitHub Pages SPA support)
+app.get('*', (req, res, next) => {
+    if (req.url.startsWith('/api')) {
+        next();
+        return;
+    }
+    res.sendFile(path_1.default.join(__dirname, '../public/index.html'));
+});
 // API Routes
-const parseWorkout = (req, res) => {
+app.post('/api/parse', (req, res) => {
     try {
-        // Check if we have a request body
-        if (!req.body || (typeof req.body !== 'object')) {
-            res.status(400).json({
+        const { workoutText } = req.body;
+        const { workout, errors } = parser.parse(workoutText);
+        if (errors.length > 0) {
+            res.json({
                 success: false,
-                error: 'Invalid request format. Expected JSON body.'
+                errors,
+                workout,
+                formatted: workout ? parser.formatWorkout(workout) : ''
             });
-            return;
         }
-        // Get workout text from either key
-        const workoutText = req.body.workoutText || req.body.workout;
-        if (!workoutText || typeof workoutText !== 'string') {
-            res.status(400).json({
+        else if (workout) {
+            res.json({
+                success: true,
+                workout,
+                formatted: parser.formatWorkout(workout)
+            });
+        }
+        else {
+            res.json({
                 success: false,
-                error: 'No workout text provided. Please enter a workout to parse.'
+                errors: [{
+                        message: 'Failed to parse workout',
+                        line: 1,
+                        column: 1,
+                        type: 'syntax'
+                    }]
             });
-            return;
         }
-        console.log('Parsing workout text:', workoutText); // Debug log
-        console.log('Workout text length:', workoutText.length);
-        console.log('Workout text lines:', workoutText.split('\n').length);
-        console.log('Workout text lines:', workoutText.split('\n'));
-        const workout = parser.parse(workoutText);
-        console.log('Parsed workout:', workout); // Debug log
-        res.json({
-            success: true,
-            workout,
-            formatted: parser.formatWorkout(workout)
-        });
     }
     catch (error) {
-        console.error('Parse error:', error); // Debug log
-        let errorMessage = 'Failed to parse workout';
-        if (error instanceof Error) {
-            // Extract the useful part of the PEG.js error message
-            const pegMatch = error.message.match(/Expected .+ but .+ found/);
-            if (pegMatch) {
-                errorMessage = `Syntax error: ${pegMatch[0]}. Please check the documentation for correct syntax.`;
-            }
-            else if (error.message.includes('is not defined')) {
-                // Handle reference errors more gracefully
-                const lineMatch = error.message.match(/line (\d+)/);
-                const line = lineMatch ? parseInt(lineMatch[1]) : null;
-                errorMessage = line
-                    ? `Invalid format at line ${line}. Please check the documentation for correct syntax.`
-                    : 'Invalid workout format. Please check the documentation for correct syntax.';
-            }
-            else {
-                errorMessage = `Parser error: ${error.message}. Please check the documentation for correct syntax.`;
-            }
-        }
-        // Log the detailed error for debugging
-        console.error('Detailed error:', {
-            originalError: error,
-            friendlyMessage: errorMessage
-        });
-        res.status(400).json({
+        res.status(500).json({
             success: false,
-            error: errorMessage
+            errors: [{
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    line: 1,
+                    column: 1,
+                    type: 'syntax'
+                }]
         });
     }
-};
-const getExercises = (req, res) => {
+});
+// Exercise Reference API
+app.get('/api/exercises', (req, res) => {
     const { category, muscleGroup } = req.query;
     let filteredExercises = [...exerciseReference_1.exerciseReference];
     if (category) {
@@ -91,8 +82,9 @@ const getExercises = (req, res) => {
         success: true,
         exercises: filteredExercises
     });
-};
-const getMuscleGroups = (_req, res) => {
+});
+// Get unique muscle groups
+app.get('/api/muscle-groups', (_req, res) => {
     const muscleGroups = new Set();
     exerciseReference_1.exerciseReference.forEach(ex => {
         ex.muscleGroups.forEach(mg => muscleGroups.add(mg));
@@ -101,11 +93,32 @@ const getMuscleGroups = (_req, res) => {
         success: true,
         muscleGroups: Array.from(muscleGroups).sort()
     });
-};
-// Register routes
-app.post('/api/parse', parseWorkout);
-app.get('/api/exercises', getExercises);
-app.get('/api/muscle-groups', getMuscleGroups);
+});
+// Add new endpoint for exercise validation data
+app.get('/api/exercise-validation', (_req, res) => {
+    // Create a map of exercise variants to their allowed equipment types
+    const validationData = {};
+    // Add all variants from EXERCISE_EQUIPMENT
+    Object.entries(exercises_1.EXERCISE_EQUIPMENT).forEach(([variant, equipment]) => {
+        validationData[variant] = equipment;
+    });
+    // Add all variants from exerciseReference
+    exerciseReference_1.exerciseReference.forEach(exercise => {
+        exercise.variations.forEach(variant => {
+            if (!validationData[variant]) {
+                validationData[variant] = exercise.equipment;
+            }
+        });
+    });
+    res.json({
+        success: true,
+        exerciseEquipment: validationData
+    });
+});
+// Add new endpoint for documentation
+app.get('/api/documentation', (_req, res) => {
+    res.type('text/plain').send(documentation_1.DOCUMENTATION_TEXT);
+});
 app.listen(port, () => {
-    console.log(`SWoLe server running at http://localhost:${port}`);
+    console.log(`WorkoutLog server running at http://localhost:${port}`);
 });
