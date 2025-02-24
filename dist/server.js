@@ -9,13 +9,132 @@ const WorkoutParser_1 = require("./parser/WorkoutParser");
 const exerciseReference_1 = require("./data/exerciseReference");
 const exercises_1 = require("./types/exercises");
 const documentation_1 = require("./data/documentation");
+const init_1 = require("./db/init");
+const userService_1 = require("./db/userService");
+const workoutFileService_1 = require("./db/workoutFileService");
+const auth_1 = require("./middleware/auth");
+const userService_2 = require("./db/userService");
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
+// Initialize database
+(0, init_1.initializeDatabase)().catch(console.error);
 // Middleware
 app.use(express_1.default.json());
 app.use(express_1.default.static(path_1.default.join(__dirname, '../public')));
 // Initialize parser
 const parser = new WorkoutParser_1.WorkoutParser();
+// Auth routes
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const credentials = req.body;
+        const user = await (0, userService_1.createUser)(credentials);
+        res.status(201).json({ success: true, user });
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Registration failed'
+        });
+    }
+});
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const credentials = req.body;
+        const token = await (0, userService_1.authenticateUser)(credentials);
+        res.json({ success: true, token });
+    }
+    catch (error) {
+        res.status(401).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Authentication failed'
+        });
+    }
+});
+// Workout file routes
+app.post('/api/files', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const { filename, content, update } = req.body;
+        const userId = req.user.userId;
+        // First verify that the user exists
+        try {
+            await (0, userService_2.getUserById)(userId);
+        }
+        catch (error) {
+            console.error('User verification failed:', error);
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid user. Please log out and log in again.'
+            });
+        }
+        try {
+            const file = await (0, workoutFileService_1.saveWorkoutFile)(userId, filename, content, update);
+            res.status(201).json({ success: true, file });
+        }
+        catch (error) {
+            if (error instanceof Error && error.message.includes('UNIQUE constraint')) {
+                res.status(409).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+            else {
+                console.error('Error saving file:', error);
+                res.status(500).json({
+                    success: false,
+                    error: 'Failed to save file'
+                });
+            }
+        }
+    }
+    catch (error) {
+        console.error('Unexpected error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'An unexpected error occurred'
+        });
+    }
+});
+app.get('/api/files', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const files = await (0, workoutFileService_1.getUserWorkoutFiles)(userId);
+        res.json({ success: true, files });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to fetch files'
+        });
+    }
+});
+app.get('/api/files/:id', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const fileId = parseInt(req.params.id);
+        const file = await (0, workoutFileService_1.getWorkoutFile)(userId, fileId);
+        res.json({ success: true, file });
+    }
+    catch (error) {
+        res.status(404).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'File not found'
+        });
+    }
+});
+app.delete('/api/files/:id', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const fileId = parseInt(req.params.id);
+        await (0, workoutFileService_1.deleteWorkoutFile)(userId, fileId);
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to delete file'
+        });
+    }
+});
 // Serve index.html for all routes (for GitHub Pages SPA support)
 app.get('*', (req, res, next) => {
     if (req.url.startsWith('/api')) {
