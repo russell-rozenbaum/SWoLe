@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
   mode: 'production',
@@ -18,9 +19,23 @@ module.exports = {
         test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
+      {
+        test: /\.pegjs$/,
+        type: 'asset/source',
+      },
     ],
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
+    fallback: {
+      "fs": false,
+      "path": false,
+      "crypto": false
+    }
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production')
+    })
+  ]
 }; 
