@@ -3,38 +3,730 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SWoLe - The Structured Workout Language</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>WorkoutLog Parser</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-dark: #1a1a1a;
+            --primary-light: #f5f5f5;
+            --accent-red: #ff4d4d;
+            --accent-yellow: #ffd700;
+            --metal-gradient: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+        }
+
+        body {
+            font-family: 'Roboto Condensed', sans-serif;
+            background-color: var(--primary-dark);
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                url('data:image/svg+xml,%3Csvg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%239C92AC" fill-opacity="0.05"%3E%3Cpath d="M0 0h20L0 20z"/%3E%3C/g%3E%3C/svg%3E');
+            color: var(--primary-light);
+        }
+
+        h1, h2, h3 {
+            font-family: 'Teko', sans-serif;
+            letter-spacing: 1px;
+        }
+
+        .editor {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 1rem;
+            height: calc(100vh - 80px);
+            padding: 1rem;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            height: 100%;
+        }
+
+        .code-section {
+            flex-grow: 1;
+            position: relative;
+            background: var(--metal-gradient);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .output-section {
+            height: auto;
+            min-height: 200px;
+            max-height: 600px;
+            background: var(--metal-gradient);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #outputArea {
+            height: 100%;
+            max-height: calc(100% - 2rem);
+            overflow-y: auto;
+        }
+
+        .sidebar {
+            background: var(--metal-gradient);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+
+        .CodeMirror {
+            height: 100% !important;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            border: 1px solid #333;
+            background: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        #parseButton {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--accent-red);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        #parseButton:hover {
+            background: #ff6666;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .exercise-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .exercise-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(2px);
+        }
+
+        .weight-type-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-right: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .weight-type-bodyweight {
+            background-color: #2d3748;
+            color: var(--accent-yellow);
+            border: 1px solid var(--accent-yellow);
+        }
+
+        .weight-type-weighted {
+            background-color: #2d3748;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+
+        .weight-type-both {
+            background: linear-gradient(45deg, var(--accent-red), var(--accent-yellow));
+            color: white;
+            border: none;
+        }
+
+        select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-red);
+        }
+
+        .error-line {
+            background-color: rgba(255, 77, 77, 0.2);
+        }
+
+        .error-widget {
+            background-color: var(--accent-red);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 400px;
+            white-space: pre-wrap;
+            margin-left: 40px;
+        }
+
+        .error-underline {
+            border-bottom: 2px wavy var(--accent-red);
+        }
+
+        /* Custom syntax highlighting */
+        .cm-exercise-prefix { color: var(--accent-yellow); font-weight: 500; }
+        .cm-exercise-name { color: #ffffff; font-weight: 500; }
+        .cm-exercise-valid { color: #00ff00; font-weight: 500; }
+        .cm-weight-modifier { color: var(--accent-red); }
+        .cm-number { color: var(--accent-yellow); }
+        .cm-superset-set { color: #ff6b6b; font-weight: bold; }
+        .cm-drop-set { color: #ff4757; font-weight: 500; }
+        .cm-date { color: #5352ed; }
+        .cm-placeholder { color: #2ed573; font-weight: bold; }
+        .cm-comment { color: #747d8c; font-style: italic; }
+
+        .logo-text {
+            text-transform: none !important;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>SWoLe</h1>
-        <h2>The Structured Workout Language</h2>
+    <header class="text-center py-4">
+        <h1 class="text-6xl font-bold text-accent-red mb-2 logo-text" style="color: var(--accent-red);">SWoLe</h1>
+        <p class="text-xl" style="color: var(--accent-yellow);">The <strong>S</strong>tructured <strong>W</strong>ork<strong>o</strong>ut <strong>L</strong>anguag<strong>e</strong></p>
     </header>
 
-    <main>
+    <div class="main-container">
         <div class="editor-container">
-            <textarea id="editor"></textarea>
-            <button id="parseWorkout">PARSE WORKOUT</button>
+            <div class="code-section">
+                <textarea id="workoutInput"></textarea>
+                <button id="parseButton">Parse Workout</button>
+            </div>
+            <div class="output-section">
+                <h2 class="text-xl font-semibold mb-4">Output</h2>
+                <pre id="outputArea" class="h-full overflow-auto"></pre>
+            </div>
         </div>
 
-        <div class="output-container">
-            <h3>Output</h3>
-            <div id="output"></div>
+        <div class="sidebar">
+            <h2 class="text-2xl font-semibold mb-4">Exercise Reference</h2>
+            <div class="filters">
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                    <option value="Push">Push</option>
+                    <option value="Pull">Pull</option>
+                    <option value="Legs">Legs</option>
+                </select>
+                <select id="muscleFilter">
+                    <option value="">All Muscle Groups</option>
+                </select>
+            </div>
+            <div id="exerciseList" class="mt-4"></div>
         </div>
+    </div>
 
-        <div class="exercise-reference">
-            <h3>Exercise Reference</h3>
-            <select id="categoryFilter">
-                <option value="">All Categories</option>
-            </select>
-            <select id="muscleGroupFilter">
-                <option value="">All Muscle Groups</option>
-            </select>
-            <div id="exerciseList"></div>
-        </div>
-    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script>
+        let editor;
+        let docEditor;
+        let exerciseReference = [];
+        let exerciseEquipment = {};
+        let currentOutput = { formatted: '', json: '' };
+        let errorWidgets = [];
+        let documentationText = '';
 
-    <script src="bundle.js"></script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const parseButton = document.getElementById('parseButton');
+            const outputArea = document.getElementById('outputArea');
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const muscleFilter = document.getElementById('muscleFilter');
+            const exerciseList = document.getElementById('exerciseList');
+            const editorModeCode = document.getElementById('editorModeCode');
+            const editorModeDoc = document.getElementById('editorModeDoc');
+
+            // Load exercise validation data and documentation
+            Promise.all([
+                fetch('/api/exercises').then(res => res.json()),
+                fetch('/api/exercise-validation').then(res => res.json()),
+                fetch('/api/documentation').then(res => res.text())
+            ]).then(([exerciseData, validationData, docText]) => {
+                if (exerciseData.success && validationData.success) {
+                    exerciseReference = exerciseData.exercises;
+                    exerciseEquipment = validationData.exerciseEquipment;
+                    documentationText = docText;
+                    initializeEditors();
+                }
+                // Move this outside the if block to ensure it always runs
+                loadExercises();
+            }).catch(error => {
+                console.error('Error loading initial data:', error);
+                // Still try to load exercises even if other data fails
+                loadExercises();
+            });
+
+            function initializeEditors() {
+                // Initialize CodeMirror with custom mode
+                CodeMirror.defineMode("workoutlog", function() {
+                    function isExerciseValid(prefix, fullName) {
+                        if (!prefix || !fullName) return false;
+                        const name = fullName.toLowerCase().trim();
+                        
+                        console.log('Validating exercise:', { prefix, name });
+                        console.log('Available variants:', Object.keys(exerciseEquipment));
+                        
+                        // Log all tricep variants for debugging
+                        const tricepVariants = Object.keys(exerciseEquipment).filter(v => 
+                            v.toLowerCase().includes('tricep') || 
+                            v.toLowerCase().includes('skull')
+                        );
+                        console.log('Tricep-related variants:', tricepVariants);
+                        
+                        // Check if this exact name exists in exerciseEquipment
+                        for (const [variant, equipment] of Object.entries(exerciseEquipment)) {
+                            const variantLower = variant.toLowerCase();
+                            console.log('Checking variant:', { 
+                                variant, 
+                                variantLower, 
+                                equipment,
+                                matches: variantLower === name,
+                                hasEquipment: equipment.includes(prefix)
+                            });
+                            if (variantLower === name && equipment.includes(prefix)) {
+                                console.log('Found exact match:', variant);
+                                return true;
+                            }
+                        }
+                        
+                        // If no exact match, check if it's a partial match
+                        const matches = Object.entries(exerciseEquipment).filter(([variant, equipment]) => {
+                            const variantLower = variant.toLowerCase();
+                            
+                            // Try exact match first
+                            if (variantLower === name && equipment.includes(prefix)) {
+                                return true;
+                            }
+                            
+                            // Try matching individual words
+                            const nameWords = name.split(/\s+/);
+                            const variantWords = variantLower.split(/\s+/);
+                            console.log('Word matching:', {
+                                name,
+                                nameWords,
+                                variant: variantLower,
+                                variantWords,
+                                matches: nameWords.every(word => variantWords.includes(word))
+                            });
+                            return nameWords.every(word => variantWords.includes(word)) && 
+                                   equipment.includes(prefix);
+                        });
+                        
+                        console.log('Partial matches found:', matches.length, matches);
+                        return matches.length > 0;
+                    }
+
+                    return {
+                        token: function(stream, state) {
+                            // Comments
+                            if (stream.match(/#.*$/)) {
+                                return "comment";
+                            }
+
+                            // Date pattern at start of line
+                            if (stream.sol() && stream.match(/\d{2}\/\d{2}\/\d{4}/)) {
+                                return "date";
+                            }
+
+                            // superset block syntax - check this before exercise names
+                            if (stream.sol() && stream.match(/superset/)) {
+                                return "superset-set";
+                            }
+                            if (stream.match(/[{}]/)) {
+                                return "superset-set";
+                            }
+
+                            // Handle indentation in superset blocks
+                            if (state.insuperset && stream.sol() && stream.match(/^\s+/)) {
+                                return null;
+                            }
+
+                            // Exercise prefixes at start of line or after superset indentation
+                            if ((stream.sol() || (state.insuperset && stream.pos === stream.indentation())) && 
+                                stream.match(/(BB|DB|BW|Cable|Machine)\s+/)) {
+                                const prefix = stream.string.match(/(BB|DB|BW|Cable|Machine)/)[0];
+                                state.expectExerciseName = true;
+                                state.prefix = prefix;
+                                return "exercise-prefix";
+                            }
+
+                            // Exercise names after prefix or at start
+                            if (state.expectExerciseName || 
+                               (stream.sol() || (state.insuperset && stream.pos === stream.indentation())) && 
+                               stream.match(/^[A-Za-z]/)) {
+                                const restOfLine = stream.string.slice(stream.pos);
+                                const match = restOfLine.match(/^([A-Za-z][A-Za-z\s]+?)(?=\n|$|\s+\d|\s+\?|\s+for|\s+x|\s*{|\s+#)/);
+                                if (match) {
+                                    const fullName = match[1].trim();
+                                    const isValid = isExerciseValid(state.prefix, fullName);
+                                    
+                                    // Consume the exercise name
+                                    stream.match(/[A-Za-z][A-Za-z\s]+/);
+                                    state.expectExerciseName = false;
+                                    state.prefix = null;
+                                    return isValid ? "exercise-valid" : "exercise-name";
+                                }
+                            }
+
+                            // Update superset state after checking for superset keyword
+                            if (stream.string.includes('superset') && stream.string.includes('{')) {
+                                state.insuperset = true;
+                            }
+                            if (stream.string.includes('}')) {
+                                state.insuperset = false;
+                            }
+
+                            // Weight modifiers and special keywords
+                            if (stream.match(/\b(ea|sole|bw)\b/)) {
+                                return "weight-modifier";
+                            }
+
+                            // Numbers
+                            if (stream.match(/\d+/)) {
+                                return "number";
+                            }
+
+                            // Drop set arrow
+                            if (stream.match(/->/)) {
+                                return "drop-set";
+                            }
+
+                            // Placeholder ?
+                            if (stream.match(/\?/)) {
+                                return "placeholder";
+                            }
+
+                            // Weight modifiers
+                            if (stream.match(/[+-]/)) {
+                                return "weight-modifier";
+                            }
+
+                            // Skip other characters
+                            stream.next();
+                            return null;
+                        },
+                        startState: function() {
+                            return { 
+                                expectExerciseName: false, 
+                                insuperset: false,
+                                prefix: null
+                            };
+                        }
+                    };
+                });
+
+                // Create main editor
+                editor = CodeMirror.fromTextArea(document.getElementById('workoutInput'), {
+                    mode: "workoutlog",
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    tabSize: 2,
+                    extraKeys: {
+                        'Tab': 'indentMore',
+                        'Shift-Tab': 'indentLess'
+                    }
+                });
+
+                // Create documentation editor
+                const docTextArea = document.createElement('textarea');
+                docTextArea.style.display = 'none';
+                document.body.appendChild(docTextArea);
+                docEditor = CodeMirror.fromTextArea(docTextArea, {
+                    mode: "workoutlog",
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    readOnly: true
+                });
+
+                // Debug logging for documentation
+                console.log('Documentation text loaded:', documentationText ? 'Yes' : 'No');
+                console.log('Documentation text length:', documentationText?.length);
+                
+                docEditor.setValue(documentationText);
+                
+                // Move the documentation editor into the input section
+                const inputSection = document.querySelector('.bg-white.rounded-lg.shadow-md.p-6.border.border-slate-200');
+                const docWrapper = docEditor.getWrapperElement();
+                docWrapper.style.display = 'none';
+                inputSection.insertBefore(docWrapper, parseButton);
+
+                // Debug logging for editor elements
+                console.log('Main editor wrapper:', editor.getWrapperElement());
+                console.log('Doc editor wrapper:', docWrapper);
+
+                // Add custom styles for syntax highlighting
+                const customStyles = document.createElement('style');
+                customStyles.textContent = `
+                    .cm-exercise-prefix { color: var(--accent-yellow); font-weight: 500; }  /* Indigo */
+                    .cm-exercise-name { color: #ffffff; font-weight: 500; }    /* Slate */
+                    .cm-exercise-valid { color: #00ff00; font-weight: 500; }   /* Sky blue */
+                    .cm-weight-modifier { color: var(--accent-red); }                     /* Orange */
+                    .cm-number { color: var(--accent-yellow); }                             /* Emerald */
+                    .cm-superset-set { color: #ff6b6b; font-weight: bold; }       /* Red */
+                    .cm-drop-set { color: #ff4757; font-weight: 500; }         /* Dark red */
+                    .cm-date { color: #5352ed; }                               /* Indigo */
+                    .cm-placeholder { color: #2ed573; font-weight: bold; }      /* Green */
+                    .cm-comment { color: #747d8c; font-style: italic; }        /* Green */
+                `;
+                document.head.appendChild(customStyles);
+
+                editor.setValue('01/24/2024\n');
+
+                // Editor mode switching
+                editorModeCode.addEventListener('click', () => {
+                    console.log('Switching to Code mode');
+                    editorModeCode.classList.add('border-slate-700', 'text-slate-700');
+                    editorModeCode.classList.remove('border-transparent', 'text-slate-500');
+                    editorModeDoc.classList.remove('border-slate-700', 'text-slate-700');
+                    editorModeDoc.classList.add('border-transparent', 'text-slate-500');
+                    editor.getWrapperElement().style.display = '';
+                    docWrapper.style.display = 'none';
+                    parseButton.style.display = '';
+                });
+
+                editorModeDoc.addEventListener('click', () => {
+                    console.log('Switching to Documentation mode');
+                    editorModeDoc.classList.add('border-slate-700', 'text-slate-700');
+                    editorModeDoc.classList.remove('border-transparent', 'text-slate-500');
+                    editorModeCode.classList.remove('border-slate-700', 'text-slate-700');
+                    editorModeCode.classList.add('border-transparent', 'text-slate-500');
+                    editor.getWrapperElement().style.display = 'none';
+                    docWrapper.style.display = '';
+                    parseButton.style.display = 'none';
+                    
+                    // Refresh the documentation editor to ensure proper rendering
+                    docEditor.refresh();
+                    console.log('Documentation editor refreshed');
+                });
+            }
+
+            function clearErrors() {
+                // Clear error styling
+                editor.getAllMarks().forEach(mark => mark.clear());
+                errorWidgets.forEach(widget => widget.clear());
+                errorWidgets = [];
+                const doc = editor.getDoc();
+                for (let i = 0; i < doc.lineCount(); i++) {
+                    editor.removeLineClass(i, 'background', 'error-line');
+                }
+            }
+
+            function displayErrors(errors) {
+                clearErrors();
+                
+                errors.forEach(error => {
+                    const line = error.line - 1;
+                    const col = error.column - 1;
+                    
+                    // Add error line highlight
+                    editor.addLineClass(line, 'background', 'error-line');
+                    
+                    // Add error underline if we have column information
+                    if (col >= 0) {
+                        const lineText = editor.getLine(line);
+                        const endCol = error.found ? col + error.found.length : lineText.length;
+                        const from = { line, ch: col };
+                        const to = { line, ch: endCol };
+                        editor.markText(from, to, { className: 'error-underline' });
+                    }
+                    
+                    // Add error message widget
+                    const msg = document.createElement('div');
+                    msg.className = 'error-widget';
+                    msg.textContent = error.message;
+                    if (error.expected) {
+                        msg.textContent += `\nExpected: ${error.expected.join(', ')}`;
+                    }
+                    errorWidgets.push(editor.addLineWidget(line, msg));
+                });
+            }
+
+            // Function to check if an exercise name is valid
+            function isValidExercise(name) {
+                return exerciseReference.some(ex => 
+                    `${ex.equipment[0]} ${ex.name}`.toLowerCase() === name.toLowerCase()
+                );
+            }
+
+            // Function to insert exercise template at cursor
+            function insertExerciseTemplate(template) {
+                let doc = editor.getDoc();
+                let cursor = doc.getCursor();
+                let line = doc.getLine(cursor.line);
+                
+                // If we're not at the start of a line and the current line isn't empty,
+                // insert a newline first
+                if (cursor.ch !== 0 || line !== '') {
+                    if (line === '') {
+                        doc.replaceRange(template, cursor);
+                    } else {
+                        doc.replaceRange('\n' + template, cursor);
+                    }
+                } else {
+                    doc.replaceRange(template, cursor);
+                }
+            }
+
+            // Make insertExerciseTemplate available globally
+            window.insertExerciseTemplate = insertExerciseTemplate;
+
+            // Update exercise list rendering
+            function loadExercises() {
+                const category = categoryFilter.value;
+                const muscleGroup = muscleFilter.value;
+                const queryParams = new URLSearchParams();
+                if (category) queryParams.append('category', category);
+                if (muscleGroup) queryParams.append('muscleGroup', muscleGroup);
+
+                fetch(`/api/exercises?${queryParams}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            exerciseList.innerHTML = data.exercises.map(exercise => `
+                                <div class="exercise-card" 
+                                     onclick="insertExerciseTemplate(\`${exercise.equipment[0]} ${exercise.name}\n${exercise.template}\`)">
+                                    <div class="flex justify-between items-start">
+                                        <h3 class="font-semibold text-lg text-white">${exercise.name}</h3>
+                                        <span class="weight-type-badge weight-type-${exercise.weightType}">
+                                            ${exercise.weightType}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="inline-block px-2 py-1 text-sm rounded bg-red-900 text-red-100 mr-2">
+                                            ${exercise.category}
+                                        </span>
+                                        ${exercise.equipment.map(eq => `
+                                            <span class="inline-block px-2 py-1 text-sm rounded bg-gray-800 text-gray-100 mr-2">
+                                                ${eq}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                    <div class="mt-2">
+                                        ${exercise.muscleGroups.map(muscle => `
+                                            <span class="inline-block px-2 py-1 text-sm rounded bg-yellow-900 text-yellow-100 mr-2 mb-2">
+                                                ${muscle}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                    <p class="text-sm text-gray-300 mt-2">${exercise.description || ''}</p>
+                                </div>
+                            `).join('');
+                        }
+                    });
+            }
+
+            // Load muscle groups
+            fetch('/api/muscle-groups')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        data.muscleGroups.forEach(muscle => {
+                            const option = document.createElement('option');
+                            option.value = muscle;
+                            option.textContent = muscle;
+                            muscleFilter.appendChild(option);
+                        });
+                    }
+                });
+
+            // Filter change handlers
+            categoryFilter.addEventListener('change', loadExercises);
+            muscleFilter.addEventListener('change', loadExercises);
+
+            // Tab switching
+            tabButtons.forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('border-slate-700', 'text-slate-700');
+                        btn.classList.add('border-transparent', 'text-slate-500');
+                    });
+                    button.classList.remove('border-transparent', 'text-slate-500');
+                    button.classList.add('border-slate-700', 'text-slate-700');
+                    
+                    outputArea.textContent = index === 0 ? currentOutput.formatted : currentOutput.json;
+                });
+            });
+
+            // Parse button click handler
+            parseButton.addEventListener('click', async () => {
+                try {
+                    clearErrors();
+                    const response = await fetch('/api/parse', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ workoutText: editor.getValue() }),
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        currentOutput.formatted = data.formatted;
+                        currentOutput.json = JSON.stringify(data.workout, null, 2);
+                        // Always show formatted output by default
+                        outputArea.textContent = currentOutput.formatted;
+                        
+                        // Reset tab styling to show formatted is selected
+                        tabButtons.forEach((btn, idx) => {
+                            if (idx === 0) {
+                                btn.classList.add('border-slate-700', 'text-slate-700');
+                                btn.classList.remove('border-transparent', 'text-slate-500');
+                            } else {
+                                btn.classList.remove('border-slate-700', 'text-slate-700');
+                                btn.classList.add('border-transparent', 'text-slate-500');
+                            }
+                        });
+                    } else {
+                        if (data.errors) {
+                            displayErrors(data.errors);
+                        }
+                        if (data.workout) {
+                            currentOutput.formatted = data.formatted || '';
+                            currentOutput.json = JSON.stringify(data.workout, null, 2);
+                            outputArea.textContent = currentOutput.formatted;
+                        }
+                    }
+                } catch (error) {
+                    displayErrors([{
+                        message: error.message,
+                        line: 1,
+                        column: 1,
+                        type: 'syntax'
+                    }]);
+                }
+            });
+        });
+    </script>
 </body>
 </html> 
